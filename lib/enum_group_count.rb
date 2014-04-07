@@ -1,12 +1,11 @@
 # collection, some kind of Enumerable
 # opts, a Hash
 #   :sort =>
-#           :key [default]    # => by key
-#           :count/:frequency            # => by occurrence count
+#           :keys [default]    # => by key
+#            :keys => :desc     # => by key, descending order
+#           :count            # => by occurrence count
+#            :count => :asc / :desc  # => by count, and order
 #           [proc(k,v)]       # => a block that is evaluated on a key, value pair
-#   :order =>
-#           :asc [default]    # => ascending order
-#           :desc/:reverse    # => reversed order
 #
 #   :hash =>
 #           false [default]   # => returns an Array
@@ -21,8 +20,6 @@
 #  default: An Array sorted by key (e.g. a[0]) in ascending order
 def enum_group_count(collection, opts={}, &group_by_blk)
   raise ArgumentError, "Collection must be an Enumerable" unless collection.class.include?Enumerable
-
-
 
   # grouping opt
   group_proc = block_given? ? group_by_blk : ->(v){ v }
@@ -42,43 +39,39 @@ def enum_group_count(collection, opts={}, &group_by_blk)
     end
   end
 
-  # Sorting opt
-  sort_opt =  opts[:sort]
-
-  # TODO
-  # if sort_opt.is_a?(Hash)
-  #   # no change
-  # else
-  #   sort_opt = Array(sort_opt)
-  # end
-
-  coll = case sort_opt
-    when nil, true, :key
-      coll.sort{|a, b| a[0] <=> b[0] }
-    when :count, :size, :frequency
-      coll.sort_by{|a| a.reverse }
-    when Proc
-      raise ArgumentError, ":sort proc requires 2 arguments" unless sort_opt.arity == 2
-      coll.sort_by{|a| [sort_opt.call(*a), a[0]] }
-    when false
-      coll
+  # Sorting opt, can be a single Symbol, or a Hash
+  sort_option = case opts[:sort]
+    when true, nil, :keys
+      {:keys => :asc}
+    when Symbol # eg :count, or :keys
+      { opts[:sort] => :asc }
     else
-      raise ArgumentError, ":sort must be a valid Symbol or Proc, not #{sort_opt}"
+      opts[:sort]
+  end
+
+  # check if sorting by :count
+  coll = case sort_option
+  when Hash
+    count_ord = sort_option.delete(:count)
+    keys_ord = sort_option.delete(:keys) == :desc ? :desc : :asc
+
+    raise ArgumentError, "#{sort_option} should contain only :keys and/or :count" unless sort_option.empty?
+    coll.sort do |a, b|
+      if count_ord && a[1] != b[1] # count_ord is optional
+        count_ord == :desc ? b[1] <=> a[1] : a[1] <=> b[1]
+      else
+        keys_ord == :desc ?  b[0] <=> a[0] : a[0] <=> b[0]
+      end
     end
-
-  # Ordering opt (i.e. reverse or not to reverse)
-  # actions are done in place
-  # TK: take out
-  # order_opt = opts[:order]
-  # case order_opt
-  # when nil, :asc # no change
-  #   coll
-  # when :desc, :reverse # reverse, in place
-  #   coll.reverse!
-  # else
-  #   raise ArgumentError, ":order must be :asc, :desc/:reverse, not #{order_opt}"
-  # end
-
+  when false
+    # do nothing
+    coll
+  when Proc
+    raise ArgumentError, ":sort proc requires 2 arguments" unless sort_option.arity == 2
+    coll.sort_by{|a| [sort_option.call(*a), a[0]] }
+  else
+    raise ArgumentError, ":sort must be a valid Symbol or Proc, not #{sort_option}"
+  end
 
   # return type
   as_opt = opts[:as].to_s

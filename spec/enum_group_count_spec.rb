@@ -7,7 +7,7 @@ describe 'enum_group_count' do
   describe 'end-to-end demo' do
     let(:collection){ ['Sarah Taylor', 'Sam Smith', 'Zelda Fitzgerald', 'Bob Smith', 'Kurt Fitzgerald', 'Bob Bob']}
     let(:opts){ {} }
-    let(:last_name_foo){ ->(v){ v.split(' ')[1]}   }
+    let(:last_name_foo){ ->(v){ v.split(' ')[1] }   }
     let(:g){ gcount collection, opts, &last_name_foo}
 
     context 'end to end and bees knees'  do
@@ -36,7 +36,7 @@ describe 'enum_group_count' do
 
       it 'or :sort by descending keys' do
         opts[:sort] = {:keys => :desc}
-        expect(g.keys).to eq %w(Bob Fitzgerald Smith Taylor).reverse
+        expect(g.keys).to eq %w(Taylor Smith Fitzgerald Bob)
         expect(g.values).to eq [1, 2, 2, 1]
       end
 
@@ -48,8 +48,8 @@ describe 'enum_group_count' do
       end
 
       it 'can :sort :count in descending order and keep keys in alpha order' do
-        opts[:sort] = {:count => :reverse}
-        expect(g.keys).to eq %w(Smith Taylor Bob Fitzgerald )
+        opts[:sort] = {:count => :desc}
+        expect(g.keys).to eq %w(Fitzgerald Smith Bob Taylor)
       end
 
       it 'in combination' do
@@ -106,10 +106,10 @@ describe 'enum_group_count' do
           let(:g){ gcount(collection, options) }
 
           it 'always sorts by :keys ascending by default' do
-\            expect( g.keys ).to eq [1, 2, 3, 4, 5]
+             expect( g.keys ).to eq [1, 2, 3, 4, 5]
           end
 
-          describe :keys do
+          describe :keys  do
             it 'as standalone symbol will just enact default :keys ascending sort' do
               options[:sort] = :keys
               expect( g.keys ).to eq [1, 2, 3, 4, 5]
@@ -117,7 +117,7 @@ describe 'enum_group_count' do
 
             it ' => :desc sorts in reverse order' do
               options[:sort] = {:keys => :desc}
-              expect( g.keys).to eq [1, 2, 3, 4, 5]
+              expect( g.keys ).to eq [5, 4, 3, 2, 1]
             end
           end
 
@@ -126,48 +126,29 @@ describe 'enum_group_count' do
             describe 'as standalone key' do
               it 'sorts by :count ascendingly, then :keys ascendingly' do
                 options[:sort] = :count
-                expect(g).to eq  [2, 5, 1, 3, 4]
+                expect(g).to eq  ({2=>1, 5=>1, 1=>2, 3=>2, 4=>3})
               end
             end
 
             describe 'as Hash' do
               it 'can specify :desc order' do
                 options[:sort] = {:count => :desc}
-                expect(g).to eq  [3, 4, 1, 2, 5]
+                expect(g.keys).to eq  [4, 1, 3, 2, 5]
               end
 
               it 'can specify :keys => :desc' do
                 options[:sort] = {:count => :desc, :keys => :desc}
-                expect(g.keys).to eq  [4, 3, 5, 2, 1]
+                expect(g.keys).to eq  [4, 3, 1, 5, 2]
               end
 
               it 'lets :count always take precedence' do
                 options[:sort] = {:count => :asc, :keys => :desc}
-                expect(g.keys).to eq  [5, 2, 1, 4, 3,]
+                expect(g.keys).to eq  [5, 2, 3, 1, 4]
               end
 
             end
           end
 
-
-          # context ':count' do
-          #   it 'sorts by number of elements in group, then key' do
-          #     expect( gcount(collection, :sort => :count).keys ).to eq [2, 5, 1, 3, 4]
-          #     expect( gcount(collection, :sort => :frequency).keys ).to eq [2, 5, 1, 3, 4]
-          #     expect( gcount(collection, :sort => :size).keys ).to eq [2, 5, 1, 3, 4]
-          #   end
-          # end
-
-          # context 'Hash =>' do
-
-          #   it ':key => :asc'
-          #   it ':count => :desc'
-
-          #   it ':count => :desc, :key => :asc'
-          #   it ':count => :asc, :key => :desc'
-
-
-          # end
 
 
 
@@ -193,14 +174,14 @@ describe 'enum_group_count' do
           end
 
           context 'true / :true' do
-            it 'sorts by ascending :key (i.e. default)' do
-              expect( gcount(collection, :sort => true).keys ).to eq gcount(collection, :sort => :key).keys
+            it 'sorts by ascending :keys (i.e. default)' do
+              expect( gcount(collection, :sort => true).keys ).to eq gcount(collection, :sort => :keys).keys
             end
           end
 
           context "non-specified object type => " do
             it 'raises an ArgumentError' do
-              expect{ gcount(collection, sort: 'key')}.to raise_error ArgumentError
+              expect{ gcount(collection, sort: 'keys')}.to raise_error ArgumentError
             end
           end
 
@@ -276,7 +257,7 @@ describe 'enum_group_count' do
               expect( g ).to be_a Hash
             end
 
-            it 'sorts by :key ascending as a default' do
+            it 'sorts by :keys ascending as a default' do
               expect(g.keys).to eq [1, 2, 3]
             end
 
@@ -312,9 +293,9 @@ describe 'enum_group_count' do
             let(:opts){ (  {count: false} )}
             let(:g){ gcount( collection, opts) }
 
-            describe ':key' do
+            describe ':keys' do
               it 'sorts by key as expected' do
-                opts[:sort] = :key
+                opts[:sort] = :keys
 
                 expect(g.keys).to eq [1, 2, 3]
               end
@@ -330,7 +311,7 @@ describe 'enum_group_count' do
             describe ':count =>' do
               it 'sorts by count of grouped collection' do
                 coll_ordered_by_size = gcount( collection, count: false, :sort => ->(k, v){ v.size} )
-                opts[:sort] = :size
+                opts[:sort] = :count
 
                 expect(g).to eq coll_ordered_by_size
               end
